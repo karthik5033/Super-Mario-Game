@@ -129,6 +129,7 @@ export default function GameCanvas() {
   useEffect(() => { customSpeedRef.current = customSpeed; }, [customSpeed]);
 
   const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const [musicOn, setMusicOn] = useState(true);
 
   useEffect(() => {
     bgmRef.current = new Audio('/blinding-lights.mp3');
@@ -137,12 +138,12 @@ export default function GameCanvas() {
   }, []);
 
   useEffect(() => {
-    if (state.status === 'PLAYING') {
+    if (state.status === 'PLAYING' && musicOn) {
        bgmRef.current?.play().catch(e => console.log('BGM play prevented:', e));
     } else {
        bgmRef.current?.pause();
     }
-  }, [state.status]);
+  }, [state.status, musicOn]);
 
   useEffect(() => {
     dispatch({ type: 'START' });
@@ -653,6 +654,16 @@ export default function GameCanvas() {
         <>
           <HUD />
           <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2 p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
+             <button
+               onClick={() => setMusicOn(prev => !prev)}
+               className={`w-full px-3 py-1.5 rounded-lg font-bold text-xs uppercase transition-all duration-200 border ${
+                 musicOn
+                   ? 'bg-green-900/60 border-green-400/50 text-green-300 hover:bg-green-800/60'
+                   : 'bg-red-900/60 border-red-400/50 text-red-300 hover:bg-red-800/60'
+               }`}
+             >
+               {musicOn ? '🎵 Music: ON' : '🔇 Music: OFF'}
+             </button>
              <div className="flex bg-gray-800 rounded-lg overflow-hidden">
                 <button 
                   onClick={() => setSpeedMode('AUTO')} 

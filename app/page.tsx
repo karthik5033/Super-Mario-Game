@@ -39,7 +39,7 @@ export default function MenuScreen() {
 
         <div className="flex flex-col gap-5 w-full max-w-sm mx-auto">
           <button 
-            onClick={() => router.push("/game")} 
+            onClick={() => router.push("/character")} 
             className="group relative w-full flex items-center justify-center gap-3 text-xl md:text-2xl font-bold py-5 rounded-2xl bg-white text-black overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.4)]"
           >
             <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
@@ -59,11 +59,12 @@ export default function MenuScreen() {
 
         <div className="mt-14 pt-8 border-t border-white/10 w-full text-center">
           <p className="text-gray-400 text-sm md:text-base font-medium flex items-center justify-center gap-2">
-            <kbd className="px-2 py-1 bg-white/10 rounded font-mono text-xs">SPACE</kbd> / <kbd className="px-2 py-1 bg-white/10 rounded font-mono text-xs">▲</kbd> Jump & Double Jump
+            <kbd className="px-2 py-1 bg-white/10 rounded font-mono text-xs whitespace-nowrap">SPACE / ▲</kbd> Jump <span className="opacity-40">|</span> <kbd className="px-2 py-1 bg-white/10 rounded font-mono text-xs whitespace-nowrap">G</kbd> Flying Mode
           </p>
-          <div className="flex items-center justify-center gap-6 mt-4 opacity-60">
-             <div className="flex items-center gap-2 text-xs text-blue-300 font-mono"><span className="text-base text-white">💎</span> Data bits = +Score & Combo</div>
-             <div className="flex items-center gap-2 text-xs text-cyan-300 font-mono"><span className="text-base text-white">🛡️</span> Shield = Absorbs 1 hit</div>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4 opacity-60">
+             <div className="flex items-center gap-2 text-xs text-blue-300 font-mono"><span className="text-base text-white">💎</span> Data bits</div>
+             <div className="flex items-center gap-2 text-xs text-cyan-300 font-mono"><span className="text-base text-white">🛡️</span> Sky Shield</div>
+             <div className="flex items-center gap-2 text-xs text-yellow-300 font-mono"><span className="text-base text-white">⭐</span> 2X Score</div>
           </div>
         </div>
 

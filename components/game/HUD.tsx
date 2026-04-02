@@ -3,12 +3,21 @@ import { GAME_CONFIG } from '@/lib/gameConfig';
 
 export function HUD() {
   const [gravityOn, setGravityOn] = useState((GAME_CONFIG as any).gravityEnabled);
+  const [muted, setMuted] = useState(false);
 
   // Keep HUD button synced with keyboard toggles too
   useEffect(() => {
-    const i = setInterval(() => setGravityOn((GAME_CONFIG as any).gravityEnabled), 50);
+    const i = setInterval(() => {
+      setGravityOn((GAME_CONFIG as any).gravityEnabled);
+      setMuted((GAME_CONFIG as any).muted);
+    }, 50);
     return () => clearInterval(i);
   }, []);
+
+  function toggleMute() {
+    const event = new KeyboardEvent('keydown', { code: 'KeyM' });
+    window.dispatchEvent(event);
+  }
 
   function toggleGravity() {
     const newState = !(GAME_CONFIG as any).gravityEnabled;
@@ -62,6 +71,15 @@ export function HUD() {
           </div>
         </div>
       </div>
+      <button 
+        onClick={toggleMute}
+        style={{ pointerEvents: 'auto' }}
+        className="fixed top-4 right-4 font-mono text-[10px] md:text-xs
+                   bg-black/40 border border-white/20
+                   px-3 py-1 rounded-full text-white z-50 transition-all hover:bg-black/60"
+      >
+        {muted ? '🔇 MUTED' : '🔊 MUSIC'}
+      </button>
       <button
         onClick={toggleGravity}
         style={{ pointerEvents: 'auto' }}

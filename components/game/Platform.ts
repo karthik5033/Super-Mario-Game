@@ -17,8 +17,8 @@ export class Platform {
     this.height = 24;
 
     const groundY = canvasHeight - (canvasHeight * GAME_CONFIG.groundHeightRatio);
-    // Platform will be suspended randomly between a single and double jump height
-    this.y = groundY - (Math.random() * 60 + 100); 
+    // Platform spawns at comfortable single-jump height (50-80px above ground)
+    this.y = groundY - (Math.random() * 30 + 50); 
     this.eraId = eraId;
   }
 

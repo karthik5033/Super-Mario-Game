@@ -1,8 +1,8 @@
 export const GAME_CONFIG = {
-  // Physics — tuned for higher jumping and better obstacle clearance
-  gravity: 0.45,
-  jumpForce: -12.5,
-  doubleJumpForce: -10.5,
+  // Physics — tuned for high arcing jumps that comfortably clear obstacles & reach platforms
+  gravity: 0.38,
+  jumpForce: -14,
+  doubleJumpForce: -12,
   baseSpeed: 2.8,
   playerSpeed: 4.5,
   groundHeightRatio: 0.18,

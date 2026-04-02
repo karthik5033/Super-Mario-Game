@@ -498,30 +498,30 @@ export default function GameCanvas() {
       )}
 
       {state.status === 'GAME_OVER' && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center text-white z-50 p-4 transition-all duration-500">
-          <div className="bg-[#0a0a0a] p-12 rounded-[2.5rem] border border-white/5 shadow-[0_0_150px_rgba(0,0,0,1)] flex flex-col items-center max-w-xl w-full animate-fade-in-up">
-            <h1 className="text-6xl md:text-7xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-pink-500 to-orange-500 uppercase tracking-tighter drop-shadow-sm">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center text-white z-50 p-4 transition-all duration-500 overflow-hidden">
+          <div className="bg-[#0a0a0a] p-6 md:p-10 rounded-3xl border border-white/5 shadow-[0_0_150px_rgba(0,0,0,1)] flex flex-col items-center max-w-lg w-full max-h-[95vh] overflow-y-auto animate-fade-in-up">
+            <h1 className="text-4xl md:text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-pink-500 to-orange-500 uppercase tracking-tighter drop-shadow-sm shrink-0">
               GAME OVER
             </h1>
             
-            <div className="w-full bg-black/50 rounded-3xl p-8 mb-8 border border-white/5 text-center shadow-inner mt-4">
-              <p className="text-sm text-gray-500 uppercase tracking-[0.2em] mb-2 font-semibold">Final Score</p>
-              <p className="text-6xl font-mono font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+            <div className="w-full bg-black/50 rounded-2xl p-5 mb-5 border border-white/5 text-center shadow-inner mt-2 shrink-0">
+              <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Final Score</p>
+              <p className="text-5xl font-mono font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                 {Math.floor(gRef.current.score).toLocaleString()}
               </p>
-              <div className="h-px bg-white/10 w-full my-6"></div>
-              <p className="text-sm text-gray-500 uppercase tracking-[0.2em] mb-2 font-semibold">Era Survived</p>
-              <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+              <div className="h-px bg-white/10 w-full my-4"></div>
+              <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Era Survived</p>
+              <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
                 {state.eraRenderData?.name}
               </p>
             </div>
             
-            <div className="flex flex-col gap-5 w-full">
-               <h3 className="text-gray-400 font-semibold mb-1 uppercase text-sm tracking-widest text-center">Save YOUR SCORE</h3>
+            <div className="flex flex-col gap-3 w-full shrink-0">
+               <h3 className="text-gray-400 font-semibold mb-1 uppercase text-xs tracking-widest text-center">Save YOUR SCORE</h3>
               <input 
                 type="text" 
                 placeholder="Enter Hacker Alias..." 
-                className="w-full bg-white/5 text-white placeholder-gray-600 px-6 py-5 rounded-2xl text-2xl text-center border focus:border-blue-500 focus:outline-none font-mono transition-all font-bold shadow-inner border-white/10 focus:ring-4 focus:ring-blue-500/20"
+                className="w-full bg-white/5 text-white placeholder-gray-600 px-4 py-3 rounded-xl text-lg text-center border focus:border-blue-500 focus:outline-none font-mono transition-all font-bold shadow-inner border-white/10 focus:ring-4 focus:ring-blue-500/20"
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 maxLength={15}
@@ -530,21 +530,21 @@ export default function GameCanvas() {
               />
               <button 
                 onClick={saveScore} 
-                className="w-full text-xl py-5 bg-white text-black hover:scale-[1.02] active:scale-95 rounded-2xl font-black shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-lg py-3 bg-white text-black hover:scale-[1.02] active:scale-95 rounded-xl font-black shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!playerName.trim()}
               >
-                Upload to Mainframe
+                Upload
               </button>
-              <div className="flex gap-4 mt-3">
+              <div className="flex gap-3 mt-2">
                   <button 
                     onClick={() => { initGame(); dispatch({ type: 'RESTART' }); setPlayerName(""); setShowIEEEBanner(false); }} 
-                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl py-4 font-bold transition-all text-gray-300"
+                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-3 font-bold transition-all text-gray-300 text-sm uppercase"
                   >
                     Reboot
                   </button>
                   <button 
                     onClick={() => router.push('/')} 
-                    className="flex-1 border border-white/5 hover:bg-white/5 rounded-2xl py-4 font-bold transition-all text-gray-500 hover:text-white"
+                    className="flex-1 border border-white/5 hover:bg-white/5 rounded-xl py-3 font-bold transition-all text-gray-500 hover:text-white text-sm uppercase"
                   >
                     Disconnect
                   </button>

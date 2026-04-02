@@ -24,7 +24,8 @@ export class Platform {
 
   update(currentSpeed: number, frames: number) {
     this.x -= currentSpeed;
-    this.floatOffset = Math.sin(frames * 0.05 + this.x) * 4;
+    // floatOffset removed to prevent high-frequency vibration
+    this.floatOffset = 0; 
     
     if (this.x + this.width < -50) {
       this.markedForDeletion = true;

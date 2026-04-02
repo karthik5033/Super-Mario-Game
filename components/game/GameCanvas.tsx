@@ -16,6 +16,10 @@ import { GAME_CONFIG, ERAS, EraConfig } from '@/lib/gameConfig';
 import { saveToLeaderboard } from '@/lib/leaderboard';
 import { IEEECoin } from './IEEECoin';
 import { DataBit, ShieldPowerUp } from './Collectibles';
+import { applyDifficultySettings } from '@/lib/adaptiveDifficulty';
+import { classifySkill, getStoredSkill, storeSkill, PlayerStats } from '@/lib/skillDetection';
+import { HintOverlay, HintUrgency } from './HintOverlay';
+import { LoreCard } from './LoreCard';
 
 type GameState = 'MENU' | 'PLAYING' | 'GAME_OVER';
 
@@ -89,6 +93,20 @@ export default function GameCanvas() {
   const [speedMode, setSpeedMode] = useState<'AUTO' | 'CUSTOM'>('AUTO');
   const [customSpeed, setCustomSpeed] = useState<number>(3.0);
 
+  const [hintsEnabled, setHintsEnabled] = useState(false);
+  const [hintUrgency, setHintUrgency] = useState<HintUrgency>("SAFE");
+  const [playerCanvasPos, setPlayerCanvasPos] = useState<{x: number, y: number} | null>(null);
+  const [finalSkillInfo, setFinalSkillInfo] = useState<{score: number, skill: string, eraName: string, eraReached: number} | null>(null);
+
+  const statsRef = useRef<PlayerStats>({
+    deaths: 0,
+    jumpsAttempted: 0,
+    jumpsSuccessful: 0,
+    totalFramesAlive: 0,
+    eraReached: 1,
+    obstaclesAvoided: 0
+  });
+
   const speedModeRef = useRef<'AUTO' | 'CUSTOM'>('AUTO');
   const customSpeedRef = useRef<number>(3.0);
 
@@ -103,6 +121,11 @@ export default function GameCanvas() {
   const initGame = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const currentSkill = getStoredSkill();
+    applyDifficultySettings(currentSkill);
+    setHintsEnabled(currentSkill === "BEGINNER");
+    setHintUrgency("SAFE");
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -222,6 +245,8 @@ export default function GameCanvas() {
         obs.update(g.currentSpeed);
         if (!obs.scored && obs.x + obs.width < p.x) {
             obs.scored = true;
+            statsRef.current.obstaclesAvoided++;
+            statsRef.current.jumpsSuccessful++;
         }
     });
     obstaclesRef.current = obstaclesRef.current.filter(obs => !obs.markedForDeletion);
@@ -407,18 +432,52 @@ export default function GameCanvas() {
       }
 
       g.score += (0.1 * g.comboMultiplier);
+      statsRef.current.totalFramesAlive++;
 
       if (eraManagerRef.current) {
          eraManagerRef.current.update(g.score);
+         statsRef.current.eraReached = eraManagerRef.current.currentEra.id;
          if (eraManagerRef.current.eraChanged) {
             g.currentSpeed += GAME_CONFIG.eraSpeedBoost;
+
+            let prevSkill = getStoredSkill();
+            let upgraded = false;
+            if (statsRef.current.eraReached >= 3 && prevSkill === "BEGINNER") {
+               storeSkill("INTERMEDIATE"); upgraded = true;
+            } else if (statsRef.current.eraReached >= 4 && prevSkill !== "PRO") {
+               storeSkill("PRO"); upgraded = true;
+            }
+            if (upgraded) applyDifficultySettings(getStoredSkill());
+
             const newEraProps = { ...eraManagerRef.current.currentEra };
             dispatch({ type: 'CHANGE_ERA', data: newEraProps });
          }
       }
 
+      if ((keys.Space || keys.ArrowUp) && !(keys as any)._jumpConsumedStats) {
+          statsRef.current.jumpsAttempted++;
+          (keys as any)._jumpConsumedStats = true;
+      }
+      if (!keys.Space && !keys.ArrowUp) (keys as any)._jumpConsumedStats = false;
+      
+      if (keys.KeyH && !(keys as any)._hConsumed) {
+         setHintsEnabled(prev => !prev);
+         (keys as any)._hConsumed = true;
+      }
+
       const isGameOver = checkCollisions();
       if (isGameOver) {
+          statsRef.current.deaths++;
+          const finalSkill = classifySkill(statsRef.current);
+          storeSkill(finalSkill);
+
+          setFinalSkillInfo({
+             score: g.score,
+             skill: finalSkill,
+             eraReached: eraManagerRef.current?.currentEra.id || 1,
+             eraName: eraManagerRef.current?.currentEra.name || "Unknown"
+          });
+
           dispatch({ type: 'GAME_OVER' });
           return;
       }
@@ -450,6 +509,13 @@ export default function GameCanvas() {
       if (playerRef.current) {
           playerRef.current.update(keys, g.frames, particlesRef.current, platformsRef.current, g.currentSpeed);
           playerRef.current.draw(ctx, g.frames, g.currentSpeed);
+
+          if (hintsEnabled && g.frames % 30 === 0) {
+             const hint = playerRef.current.predictJumpPath(obstaclesRef.current, g.currentSpeed);
+             setHintUrgency(hint.urgency);
+             const rect = canvas.getBoundingClientRect();
+             setPlayerCanvasPos({ x: playerRef.current.x + rect.left + playerRef.current.width/2, y: playerRef.current.y + rect.top });
+          }
       }
     }
   }, state.status === 'PLAYING');
@@ -486,6 +552,7 @@ export default function GameCanvas() {
   return (
     <div className="relative w-full h-full overflow-hidden bg-black font-sans selection:bg-purple-500/30">
       <canvas ref={canvasRef} className="block w-full h-full" />
+      <HintOverlay urgency={hintUrgency} playerPos={playerCanvasPos} enabled={hintsEnabled && state.status === 'PLAYING'} />
       
       {state.status === 'PLAYING' && state.eraRenderData && (
         <>
@@ -513,6 +580,9 @@ export default function GameCanvas() {
                    />
                 </div>
              )}
+          </div>
+          <div className="absolute bottom-4 left-4 z-30 text-white/50 text-[10px] uppercase font-mono tracking-widest font-bold hidden md:block">
+            Hints: {hintsEnabled ? "ON" : "OFF"} (Press H)
           </div>
         </>
       )}
@@ -556,13 +626,32 @@ export default function GameCanvas() {
                 {Math.floor(gRef.current.score).toLocaleString()}
               </p>
               <div className="h-px bg-white/10 w-full my-4"></div>
-              <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Era Survived</p>
-              <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                {state.eraRenderData?.name}
-              </p>
+              <div className="flex justify-between items-center text-left">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Era</p>
+                  <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                    {state.eraRenderData?.name}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Skill Level</p>
+                  <p className={`text-lg font-bold ${finalSkillInfo?.skill === 'PRO' ? 'text-red-500' : finalSkillInfo?.skill === 'INTERMEDIATE' ? 'text-yellow-400' : 'text-green-500'}`}>
+                    {finalSkillInfo?.skill || 'MEASURING...'}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {finalSkillInfo && (
+               <LoreCard 
+                 eraReached={finalSkillInfo.eraReached} 
+                 eraName={finalSkillInfo.eraName} 
+                 score={Math.floor(finalSkillInfo.score)} 
+                 skillLevel={finalSkillInfo.skill} 
+               />
+            )}
             
-            <div className="flex flex-col gap-3 w-full shrink-0">
+            <div className="flex flex-col gap-3 w-full shrink-0 mt-4">
                <h3 className="text-gray-400 font-semibold mb-1 uppercase text-xs tracking-widest text-center">Save YOUR SCORE</h3>
               <input 
                 type="text" 

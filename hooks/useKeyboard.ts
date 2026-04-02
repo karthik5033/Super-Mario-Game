@@ -6,7 +6,9 @@ export function useKeyboard() {
     ArrowUp: false,
     ArrowLeft: false,
     ArrowRight: false,
-    _jumpConsumed: false
+    KeyH: false,
+    _jumpConsumed: false,
+    _hConsumed: false
   });
 
   useEffect(() => {

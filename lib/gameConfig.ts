@@ -35,6 +35,7 @@ export const GAME_CONFIG = {
   // IEEE easter egg
   ieeeScore: 1946,
   ieeeBonusPoints: 500,
+  muted: false
 };
 
 export interface EraConfig {
@@ -124,3 +125,52 @@ export const ERAS: EraConfig[] = [
     starColor: "#fd79a8",
   },
 ];
+
+export type CharacterId = 'mario' | 'bill' | 'robot' | 'ada' | 'linus';
+
+export interface CharacterConfig {
+  id: CharacterId;
+  name: string;
+  description: string;
+  color: string;
+  unlocked: boolean;
+}
+
+export const CHARACTERS: CharacterConfig[] = [
+  {
+    id: 'mario',
+    name: 'Mario',
+    description: 'Classic platformer hero',
+    color: '#e52521',
+    unlocked: true
+  },
+  {
+    id: 'bill',
+    name: 'Bill',
+    description: 'Tech visionary',
+    color: '#1e3a5f',
+    unlocked: true
+  },
+  {
+    id: 'robot',
+    name: 'R-80',
+    description: 'IEEE Scientist Bot',
+    color: '#b0c4de',
+    unlocked: true
+  },
+  {
+    id: 'ada',
+    name: 'Ada',
+    description: 'First programmer, 1843',
+    color: '#7c3aed',
+    unlocked: true
+  },
+  {
+    id: 'linus',
+    name: 'Linus',
+    description: 'Open source legend',
+    color: '#374151',
+    unlocked: true
+  }
+];
+

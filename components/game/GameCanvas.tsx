@@ -28,6 +28,7 @@ interface State {
   eraRenderData: EraConfig | null;
   bannerVisible: boolean;
   gravityEnabled: boolean;
+  muted: boolean;
 }
 
 type Action = 
@@ -37,13 +38,15 @@ type Action =
   | { type: 'SAVE_SCORE' }
   | { type: 'CHANGE_ERA'; data: EraConfig }
   | { type: 'HIDE_BANNER' }
-  | { type: 'TOGGLE_GRAVITY' };
+  | { type: 'TOGGLE_GRAVITY' }
+  | { type: 'TOGGLE_MUTE' };
 
 const initialState: State = {
   status: 'MENU',
   eraRenderData: ERAS[0],
   bannerVisible: true,
-  gravityEnabled: true
+  gravityEnabled: true,
+  muted: false
 };
 
 function gameReducer(state: State, action: Action): State {
@@ -66,6 +69,10 @@ function gameReducer(state: State, action: Action): State {
       return { ...state, eraRenderData: action.data, bannerVisible: true };
     case 'HIDE_BANNER':
       return { ...state, bannerVisible: false };
+    case 'TOGGLE_MUTE':
+      const newMuted = !state.muted;
+      (GAME_CONFIG as any).muted = newMuted;
+      return { ...state, muted: newMuted };
     default:
       return state;
   }
@@ -147,9 +154,46 @@ export default function GameCanvas() {
     }
   }, [gravityToggleMsg]);
 
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const gameOverAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    bgmRef.current = new Audio('/music/theme.mp3');
+    bgmRef.current.loop = true;
+    bgmRef.current.volume = 0.4; 
+
+    gameOverAudioRef.current = new Audio('/music/gameover.mp3');
+    gameOverAudioRef.current.volume = 1.0; 
+  }, []);
+
+  useEffect(() => {
+    if (bgmRef.current) {
+      bgmRef.current.muted = state.muted;
+    }
+    if (gameOverAudioRef.current) {
+      gameOverAudioRef.current.muted = state.muted;
+    }
+  }, [state.muted]);
+
+  useEffect(() => {
+    if (state.status === 'PLAYING' && !state.muted) {
+       bgmRef.current?.play().catch(e => console.log('BGM play prevented:', e));
+    } else {
+       bgmRef.current?.pause();
+    }
+  }, [state.status, state.muted]);
+
   useEffect(() => {
     dispatch({ type: 'START' });
     initGame();
+
+    const handleKeyM = (e: KeyboardEvent) => {
+      if (e.code === 'KeyM' && !e.repeat) {
+        dispatch({ type: 'TOGGLE_MUTE' });
+      }
+    };
+    window.addEventListener('keydown', handleKeyM);
+    return () => window.removeEventListener('keydown', handleKeyM);
   }, []);
 
   const initGame = () => {
@@ -189,6 +233,20 @@ export default function GameCanvas() {
         const cloud = new Cloud(canvas.width, canvas.height, GAME_CONFIG.baseSpeed);
         cloud.x = Math.random() * canvas.width;
         cloudsRef.current.push(cloud);
+    }
+
+    if (bgmRef.current) {
+        bgmRef.current.currentTime = 0;
+        if (state.status === 'PLAYING' && !state.muted) {
+            bgmRef.current.play().catch(() => {});
+        } else {
+            bgmRef.current.pause();
+        }
+    }
+
+    if (gameOverAudioRef.current) {
+        gameOverAudioRef.current.pause();
+        gameOverAudioRef.current.currentTime = 0;
     }
   };
 
@@ -539,6 +597,10 @@ export default function GameCanvas() {
           });
 
           dispatch({ type: 'GAME_OVER' });
+          bgmRef.current?.pause();
+          if (!state.muted) {
+              gameOverAudioRef.current?.play().catch(() => {});
+          }
           return;
       }
       
@@ -665,6 +727,16 @@ export default function GameCanvas() {
         <>
           <HUD gravityOn={state.gravityEnabled} toggleGravity={toggleGravityCallback} />
           <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2 p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
+             <button
+                onClick={() => dispatch({ type: 'TOGGLE_MUTE' })}
+                className={`w-full px-4 py-1.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 border ${
+                  !state.muted
+                    ? 'bg-white text-black border-transparent shadow-[0_0_15px_rgba(255,255,255,0.4)]'
+                    : 'bg-white/5 border-white/20 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {!state.muted ? '🎵 Music: ON' : '🔇 Music: OFF'}
+              </button>
              <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-sm">
                 <button 
                   onClick={() => setSpeedMode('AUTO')} 
@@ -779,6 +851,12 @@ export default function GameCanvas() {
                 Upload
               </button>
               <div className="flex gap-3 mt-2">
+                   <button 
+                    onClick={() => { dispatch({ type: 'TOGGLE_MUTE' }); }} 
+                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-3 font-bold transition-all text-gray-300 text-sm uppercase"
+                  >
+                    {state.muted ? 'Music: OFF' : 'Music: ON'}
+                  </button>
                   <button 
                     onClick={() => { initGame(); dispatch({ type: 'RESTART' }); setPlayerName(""); setShowIEEEBanner(false); }} 
                     className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl py-3 font-bold transition-all text-gray-300 text-sm uppercase"

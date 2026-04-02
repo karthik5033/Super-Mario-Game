@@ -64,7 +64,7 @@ export function HUD({ gravityOn = true, toggleGravity }: HUDProps) {
             }
           `}
         >
-          {gravityOn ? '🌍 GRAVITY: ON' : '🚀 GRAVITY: OFF'}
+          {gravityOn ? '🌍 GRAVITY: ON' : '🚀 FLYING MODE'}
         </button>
       )}
     </div>

@@ -27,6 +27,7 @@ interface State {
   status: GameState;
   eraRenderData: EraConfig | null;
   bannerVisible: boolean;
+  gravityEnabled: boolean;
 }
 
 type Action = 
@@ -35,22 +36,30 @@ type Action =
   | { type: 'RESTART' }
   | { type: 'SAVE_SCORE' }
   | { type: 'CHANGE_ERA'; data: EraConfig }
-  | { type: 'HIDE_BANNER' };
+  | { type: 'HIDE_BANNER' }
+  | { type: 'TOGGLE_GRAVITY' };
 
 const initialState: State = {
   status: 'MENU',
   eraRenderData: ERAS[0],
-  bannerVisible: true
+  bannerVisible: true,
+  gravityEnabled: true
 };
 
 function gameReducer(state: State, action: Action): State {
   switch (action.type) {
+    case 'TOGGLE_GRAVITY':
+      const newGravity = !state.gravityEnabled;
+      (GAME_CONFIG as any).gravityEnabled = newGravity;
+      return { ...state, gravityEnabled: newGravity };
     case 'START':
-      return { ...state, status: 'PLAYING', bannerVisible: true, eraRenderData: ERAS[0] };
+      (GAME_CONFIG as any).gravityEnabled = true;
+      return { ...state, status: 'PLAYING', bannerVisible: true, eraRenderData: ERAS[0], gravityEnabled: true };
     case 'GAME_OVER':
       return { ...state, status: 'GAME_OVER' };
     case 'RESTART':
-      return { ...initialState, status: 'PLAYING' };
+      (GAME_CONFIG as any).gravityEnabled = true;
+      return { ...initialState, status: 'PLAYING', gravityEnabled: true };
     case 'SAVE_SCORE':
       return { ...state, status: 'MENU' };
     case 'CHANGE_ERA':
@@ -65,7 +74,22 @@ function gameReducer(state: State, action: Action): State {
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const keys = useKeyboard();
+  
+  const [gravityToggleMsg, setGravityToggleMsg] = useState<{ text: string, color: string, id: number } | null>(null);
+  const [gravityToggleFade, setGravityToggleFade] = useState(false);
+  
+  const toggleGravityCallback = () => {
+     dispatch({ type: 'TOGGLE_GRAVITY' });
+     const willBeGravityOn = !state.gravityEnabled;
+     setGravityToggleMsg({
+        text: willBeGravityOn ? "GRAVITY RESTORED" : "ZERO-G MODE",
+        color: willBeGravityOn ? "text-blue-400" : "text-purple-400",
+        id: Date.now()
+     });
+     setGravityToggleFade(false);
+  };
+  
+  const keys = useKeyboard(toggleGravityCallback);
   const router = useRouter();
 
   const gRef = useRef({
@@ -98,6 +122,8 @@ export default function GameCanvas() {
   const [playerCanvasPos, setPlayerCanvasPos] = useState<{x: number, y: number} | null>(null);
   const [finalSkillInfo, setFinalSkillInfo] = useState<{score: number, skill: string, eraName: string, eraReached: number} | null>(null);
 
+  const lastObstacleXRef = useRef<number>(0);
+
   const statsRef = useRef<PlayerStats>({
     deaths: 0,
     jumpsAttempted: 0,
@@ -112,6 +138,14 @@ export default function GameCanvas() {
 
   useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
   useEffect(() => { customSpeedRef.current = customSpeed; }, [customSpeed]);
+
+  useEffect(() => {
+    if (gravityToggleMsg) {
+       const t1 = setTimeout(() => setGravityToggleFade(true), 50);
+       const t2 = setTimeout(() => setGravityToggleMsg(null), 1500);
+       return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, [gravityToggleMsg]);
 
   useEffect(() => {
     dispatch({ type: 'START' });
@@ -149,6 +183,7 @@ export default function GameCanvas() {
     shieldsRef.current = [];
     eraManagerRef.current = new EraManager();
     coinRef.current = null;
+    lastObstacleXRef.current = canvas.width;
 
     for (let i = 0; i < 6; i++) {
         const cloud = new Cloud(canvas.width, canvas.height, GAME_CONFIG.baseSpeed);
@@ -219,14 +254,9 @@ export default function GameCanvas() {
     const eraId = eraManagerRef.current?.currentEra.id || 1;
 
     // Obstacle and Platform Spawning
-    const lastEntityX = Math.max(
-       obstaclesRef.current.length > 0 ? obstaclesRef.current[obstaclesRef.current.length - 1].x : 0,
-       platformsRef.current.length > 0 ? platformsRef.current[platformsRef.current.length - 1].x : 0
-    );
-
-    const canSpawnEntity = (canvas.width - lastEntityX > GAME_CONFIG.minObstacleGap);
+    const gap = GAME_CONFIG.minObstacleGap + Math.random() * 300;
     
-    if (canSpawnEntity && Math.random() < GAME_CONFIG.obstacleSpawnChance) {
+    if (lastObstacleXRef.current < canvas.width - gap) {
         if (Math.random() < 0.40) { // 40% chance to spawn platforms
              const plat = new Platform(canvas.width, canvas.height, eraId);
              platformsRef.current.push(plat);
@@ -240,33 +270,36 @@ export default function GameCanvas() {
              }
 
         } else {
-             const obs = new Obstacle(canvas, eraId, g.currentSpeed);
+             const obs = new Obstacle(canvas, eraId);
              obstaclesRef.current.push(obs);
              
-             // Spawn a jumped arc of coins over the moving robot
+             // Spawn a jumped arc of coins over the obstacle
              for (let i=-1; i<=1; i++) {
                 let bit = new DataBit(canvas.width, canvas.height, eraId, g.frames);
-                bit.x = obs.x + (i * 45);
+                bit.x = obs.x + obs.width/2 + (i * 45); 
                 bit.y = obs.y - 65 - Math.cos(i) * 35; 
                 dataBitsRef.current.push(bit);
              }
         }
+        lastObstacleXRef.current = canvas.width;
     }
+    lastObstacleXRef.current -= g.currentSpeed;
 
     // Power-ups spawn occasionally independent of structure
     if (Math.random() < GAME_CONFIG.powerUpSpawnChance && !p.hasShield && shieldsRef.current.length === 0) {
       shieldsRef.current.push(new ShieldPowerUp(canvas.width, canvas.height, g.frames));
     }
 
+    obstaclesRef.current.forEach(obs => obs.update(g.currentSpeed));
+    obstaclesRef.current = obstaclesRef.current.filter(obs => !obs.isOffScreen);
+
     obstaclesRef.current.forEach(obs => {
-        obs.update(g.currentSpeed);
-        if (!obs.scored && obs.x + obs.width < p.x) {
-            obs.scored = true;
+        if (!obs.passed && obs.x + obs.width < p.x) {
+            obs.passed = true;
             statsRef.current.obstaclesAvoided++;
             statsRef.current.jumpsSuccessful++;
         }
     });
-    obstaclesRef.current = obstaclesRef.current.filter(obs => !obs.markedForDeletion);
 
     platformsRef.current.forEach(plat => plat.update(g.currentSpeed, g.frames));
     platformsRef.current = platformsRef.current.filter(plat => !plat.markedForDeletion);
@@ -305,12 +338,24 @@ export default function GameCanvas() {
     if (px < -pw) return true;
 
     // Obstacles
+    const pBox = {
+      x: px + 6,
+      y: py + 4,
+      width: pw - 12,
+      height: ph - 4
+    };
+
     for (const obs of obstaclesRef.current) {
-        const oh = obs.getHitbox();
-        if (px + 4 < oh.x + oh.width && px + pw - 4 > oh.x && py + 4 < oh.y + oh.height && py + ph - 4 > oh.y) {
+        const h = obs.hitbox;
+        if (
+          pBox.x < h.x + h.width &&
+          pBox.x + pBox.width > h.x &&
+          pBox.y < h.y + h.height &&
+          pBox.y + pBox.height > h.y
+        ) {
             if (!p.hitObstacle()) {
                 obs.markedForDeletion = true;
-                createExplosion(oh.x + oh.width/2, oh.y + oh.height/2, '#3498db');
+                createExplosion(h.x + h.width/2, h.y + h.height/2, '#3498db');
                 g.combo = 0;
                 g.comboMultiplier = 1;
             } else {
@@ -455,8 +500,6 @@ export default function GameCanvas() {
          eraManagerRef.current.update(g.score);
          statsRef.current.eraReached = eraManagerRef.current.currentEra.id;
          if (eraManagerRef.current.eraChanged) {
-            g.currentSpeed += GAME_CONFIG.eraSpeedBoost;
-
             let prevSkill = getStoredSkill();
             let upgraded = false;
             if (statsRef.current.eraReached >= 3 && prevSkill === "BEGINNER") {
@@ -500,7 +543,13 @@ export default function GameCanvas() {
       }
       
       if (speedModeRef.current === 'AUTO') {
-          g.currentSpeed = Math.min(g.currentSpeed + (GAME_CONFIG.speedIncrement * 0.1), GAME_CONFIG.maxSpeed);
+          const maxSpeeds: Record<number, number> = { 1: 8, 2: 10, 3: 12, 4: 14, 5: 16 };
+          const eraId = eraManagerRef.current?.currentEra.id || 1;
+          const speedCap = maxSpeeds[eraId] || 16;
+          
+          if (g.currentSpeed < speedCap) {
+             g.currentSpeed += 0.0008;
+          }
       } else {
           g.currentSpeed = customSpeedRef.current;
       }
@@ -532,6 +581,34 @@ export default function GameCanvas() {
              setHintUrgency(hint.urgency);
              const rect = canvas.getBoundingClientRect();
              setPlayerCanvasPos({ x: playerRef.current.x + rect.left + playerRef.current.width/2, y: playerRef.current.y + rect.top });
+          }
+
+          if (!state.gravityEnabled && g.frames % 5 === 0) {
+             particlesRef.current.push(new Particle(
+                playerRef.current.x + playerRef.current.width/2,
+                playerRef.current.y + playerRef.current.height/2,
+                (Math.random() - 0.5) * 2,
+                -0.5,
+                Math.random() * 2 + 1,
+                'rgba(150, 100, 255, 0.6)'
+             ));
+          }
+
+          if (!state.gravityEnabled) {
+             ctx.save();
+             ctx.shadowBlur = 20;
+             ctx.shadowColor = '#a855f7';
+             ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+             ctx.lineWidth = 2;
+             ctx.beginPath();
+             ctx.arc(
+               playerRef.current.x + playerRef.current.width/2,
+               playerRef.current.y + playerRef.current.height/2,
+               playerRef.current.width * 0.9,
+               0, Math.PI * 2
+             );
+             ctx.stroke();
+             ctx.restore();
           }
       }
     }
@@ -571,9 +648,22 @@ export default function GameCanvas() {
       <canvas ref={canvasRef} className="block w-full h-full" />
       <HintOverlay urgency={hintUrgency} playerPos={playerCanvasPos} enabled={hintsEnabled && state.status === 'PLAYING'} />
       
+      {gravityToggleMsg && (
+        <div 
+           key={gravityToggleMsg.id} 
+           className={`absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none ${gravityToggleMsg.color} font-black text-4xl md:text-5xl tracking-[0.2em] font-mono transition-opacity duration-[1500ms] ease-out`}
+           style={{
+             textShadow: '0 0 15px currentColor',
+             opacity: gravityToggleFade ? 0 : 1
+           }}
+        >
+          {gravityToggleMsg.text}
+        </div>
+      )}
+
       {state.status === 'PLAYING' && state.eraRenderData && (
         <>
-          <HUD />
+          <HUD gravityOn={state.gravityEnabled} toggleGravity={toggleGravityCallback} />
           <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2 p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
              <div className="flex bg-gray-800 rounded-lg overflow-hidden">
                 <button 

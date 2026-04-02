@@ -121,7 +121,17 @@ export class Player {
     }
 
     // Gravity
-    this.vy += GAME_CONFIG.gravity;
+    if ((GAME_CONFIG as any).gravityEnabled) {
+      this.vy += GAME_CONFIG.gravity;
+    } else {
+      this.vy += (GAME_CONFIG as any).zeroGravityFloat;
+      this.vy *= 0.92;
+    }
+
+    if (!(GAME_CONFIG as any).gravityEnabled && this.vy < -18) {
+      this.vy = -18;
+    }
+
     this.y += this.vy;
 
     const absoluteGroundY = this.canvas.height - (this.canvas.height * GAME_CONFIG.groundHeightRatio);

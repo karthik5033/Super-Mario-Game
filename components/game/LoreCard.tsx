@@ -95,19 +95,19 @@ End with a short encouragement for the player.`
   }, [eraReached, eraName, score, skillLevel]);
 
   return (
-    <div className="bg-gray-900 border border-amber-500 rounded-lg p-4 mt-4 max-w-md mx-auto w-full">
-      <h3 className="text-amber-400 font-mono font-bold mb-2 flex items-center gap-2">
+    <div className="bg-white/5 border border-white/10 rounded-lg p-4 mt-4 max-w-md mx-auto w-full">
+      <h3 className="text-gray-300 font-mono font-bold mb-2 flex items-center gap-2">
         <span className={state === "loading" ? "animate-pulse" : ""}>📡</span> Computing Lore
       </h3>
       
       {state === "loading" && (
-        <p className="text-amber-300 font-mono text-sm animate-pulse">
+        <p className="text-gray-400 font-mono text-sm animate-pulse">
           Transmitting...
         </p>
       )}
       
       {(state === "success" || state === "error") && (
-        <p className="text-amber-100 font-mono text-sm leading-relaxed">
+        <p className="text-gray-200 font-mono text-sm leading-relaxed">
           {loreText}
         </p>
       )}

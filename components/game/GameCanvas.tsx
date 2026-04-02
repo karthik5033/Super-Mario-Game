@@ -50,15 +50,15 @@ function gameReducer(state: State, action: Action): State {
   switch (action.type) {
     case 'TOGGLE_GRAVITY':
       const newGravity = !state.gravityEnabled;
-      (GAME_CONFIG as any).gravityEnabled = newGravity;
+      GAME_CONFIG.gravityEnabled = newGravity;
       return { ...state, gravityEnabled: newGravity };
     case 'START':
-      (GAME_CONFIG as any).gravityEnabled = true;
+      GAME_CONFIG.gravityEnabled = true;
       return { ...state, status: 'PLAYING', bannerVisible: true, eraRenderData: ERAS[0], gravityEnabled: true };
     case 'GAME_OVER':
       return { ...state, status: 'GAME_OVER' };
     case 'RESTART':
-      (GAME_CONFIG as any).gravityEnabled = true;
+      GAME_CONFIG.gravityEnabled = true;
       return { ...initialState, status: 'PLAYING', gravityEnabled: true };
     case 'SAVE_SCORE':
       return { ...state, status: 'MENU' };
@@ -665,14 +665,15 @@ export default function GameCanvas() {
         <>
           <HUD gravityOn={state.gravityEnabled} toggleGravity={toggleGravityCallback} />
           <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2 p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
-             <div className="flex bg-gray-800 rounded-lg overflow-hidden">
+             <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-sm">
                 <button 
                   onClick={() => setSpeedMode('AUTO')} 
-                  className={`px-3 py-1 font-bold text-xs uppercase ${speedMode === 'AUTO' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}
+                  className={`px-4 py-1.5 font-bold text-xs uppercase tracking-wider transition-all duration-300 ${speedMode === 'AUTO' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >Auto</button>
+                <div className="w-px bg-white/10"></div>
                 <button 
                   onClick={() => setSpeedMode('CUSTOM')} 
-                  className={`px-3 py-1 font-bold text-xs uppercase ${speedMode === 'CUSTOM' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}
+                  className={`px-4 py-1.5 font-bold text-xs uppercase tracking-wider transition-all duration-300 ${speedMode === 'CUSTOM' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >Custom</button>
              </div>
              {speedMode === 'CUSTOM' && (
@@ -723,7 +724,7 @@ export default function GameCanvas() {
       {state.status === 'GAME_OVER' && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center text-white z-50 p-4 transition-all duration-500 overflow-hidden">
           <div className="bg-[#0a0a0a] p-6 md:p-10 rounded-3xl border border-white/5 shadow-[0_0_150px_rgba(0,0,0,1)] flex flex-col items-center max-w-lg w-full max-h-[95vh] overflow-y-auto animate-fade-in-up">
-            <h1 className="text-4xl md:text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-pink-500 to-orange-500 uppercase tracking-tighter drop-shadow-sm shrink-0">
+            <h1 className="text-4xl md:text-6xl font-black mb-2 text-white uppercase tracking-tighter drop-shadow-sm shrink-0">
               GAME OVER
             </h1>
             
@@ -736,13 +737,13 @@ export default function GameCanvas() {
               <div className="flex justify-between items-center text-left">
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Era</p>
-                  <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                  <p className="text-lg font-bold text-white">
                     {state.eraRenderData?.name}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-1 font-semibold">Skill Level</p>
-                  <p className={`text-lg font-bold ${finalSkillInfo?.skill === 'PRO' ? 'text-red-500' : finalSkillInfo?.skill === 'INTERMEDIATE' ? 'text-yellow-400' : 'text-green-500'}`}>
+                  <p className="text-lg font-bold text-white">
                     {finalSkillInfo?.skill || 'MEASURING...'}
                   </p>
                 </div>

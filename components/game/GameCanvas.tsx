@@ -8,6 +8,7 @@ import { Player } from './Player';
 import { Particle } from './ParticleSystem';
 import { Cloud } from './Cloud';
 import { Obstacle } from './Obstacle';
+import { Platform } from './Platform';
 import { EraManager } from './EraManager';
 import { HUD } from './HUD';
 import { GAME_CONFIG, ERAS, EraConfig } from '@/lib/gameConfig';
@@ -62,7 +63,6 @@ export default function GameCanvas() {
   const keys = useKeyboard();
   const router = useRouter();
 
-  // Mutable state for perfect 60FPS without React renders
   const gRef = useRef({
     score: 0,
     currentSpeed: GAME_CONFIG.baseSpeed,
@@ -76,6 +76,7 @@ export default function GameCanvas() {
   const particlesRef = useRef<Particle[]>([]);
   const cloudsRef = useRef<Cloud[]>([]);
   const obstaclesRef = useRef<Obstacle[]>([]);
+  const platformsRef = useRef<Platform[]>([]);
   const dataBitsRef = useRef<DataBit[]>([]);
   const shieldsRef = useRef<ShieldPowerUp[]>([]);
   const eraManagerRef = useRef<EraManager | null>(null);
@@ -109,6 +110,7 @@ export default function GameCanvas() {
     particlesRef.current = [];
     cloudsRef.current = [];
     obstaclesRef.current = [];
+    platformsRef.current = [];
     dataBitsRef.current = [];
     shieldsRef.current = [];
     eraManagerRef.current = new EraManager();
@@ -125,7 +127,7 @@ export default function GameCanvas() {
      if (state.bannerVisible && state.status === 'PLAYING') {
          const t = setTimeout(() => {
              dispatch({ type: 'HIDE_BANNER' });
-         }, 3000); // Banner remains slightly longer
+         }, 3000);
          return () => clearTimeout(t);
      }
   }, [state.bannerVisible, state.status]);
@@ -182,12 +184,20 @@ export default function GameCanvas() {
 
     const eraId = eraManagerRef.current?.currentEra.id || 1;
 
-    // Obstacle spawning
-    const canSpawnObstacle = obstaclesRef.current.length === 0 || 
-        (canvas.width - obstaclesRef.current[obstaclesRef.current.length - 1].x > GAME_CONFIG.minObstacleGap);
+    // Obstacle and Platform Spawning
+    const lastEntityX = Math.max(
+       obstaclesRef.current.length > 0 ? obstaclesRef.current[obstaclesRef.current.length - 1].x : 0,
+       platformsRef.current.length > 0 ? platformsRef.current[platformsRef.current.length - 1].x : 0
+    );
+
+    const canSpawnEntity = (canvas.width - lastEntityX > GAME_CONFIG.minObstacleGap);
     
-    if (canSpawnObstacle && Math.random() < GAME_CONFIG.obstacleSpawnChance) {
-        obstaclesRef.current.push(new Obstacle(canvas, eraId, g.currentSpeed));
+    if (canSpawnEntity && Math.random() < GAME_CONFIG.obstacleSpawnChance) {
+        if (Math.random() < 0.35) { // 35% chance to spawn platforms
+             platformsRef.current.push(new Platform(canvas.width, canvas.height, eraId));
+        } else {
+             obstaclesRef.current.push(new Obstacle(canvas, eraId, g.currentSpeed));
+        }
     }
 
     if (Math.random() < GAME_CONFIG.dataBitSpawnChance) {
@@ -204,6 +214,9 @@ export default function GameCanvas() {
         }
     });
     obstaclesRef.current = obstaclesRef.current.filter(obs => !obs.markedForDeletion);
+
+    platformsRef.current.forEach(plat => plat.update(g.currentSpeed, g.frames));
+    platformsRef.current = platformsRef.current.filter(plat => !plat.markedForDeletion);
 
     dataBitsRef.current.forEach(bit => bit.update(g.currentSpeed, g.frames));
     dataBitsRef.current = dataBitsRef.current.filter(bit => !bit.markedForDeletion && !bit.collected);
@@ -235,10 +248,12 @@ export default function GameCanvas() {
     const pw = p.width;
     const ph = p.height;
 
+    // Check if pushed completely off left screen bounds
+    if (px < -pw) return true;
+
     // Obstacles
     for (const obs of obstaclesRef.current) {
         const oh = obs.getHitbox();
-        // Generous hitbox allowance
         if (px + 4 < oh.x + oh.width && px + pw - 4 > oh.x && py + 4 < oh.y + oh.height && py + ph - 4 > oh.y) {
             if (!p.hitObstacle()) {
                 obs.markedForDeletion = true;
@@ -246,7 +261,7 @@ export default function GameCanvas() {
                 g.combo = 0;
                 g.comboMultiplier = 1;
             } else {
-                return true; // Game Over
+                return true; 
             }
         }
     }
@@ -296,14 +311,12 @@ export default function GameCanvas() {
     const g = gRef.current;
     if (!era) return;
 
-    // Smooth rich sky gradient
     let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     grad.addColorStop(0, era.bgTop); 
     grad.addColorStop(1, era.bgBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Glowing sun/moon
     ctx.save();
     ctx.shadowBlur = 40;
     ctx.shadowColor = era.starColor;
@@ -315,7 +328,6 @@ export default function GameCanvas() {
 
     cloudsRef.current.forEach(c => c.draw(ctx));
 
-    // Refined ground gradient
     const groundY = canvas.height - (canvas.height * GAME_CONFIG.groundHeightRatio);
     let groundGrad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
     groundGrad.addColorStop(0, era.groundColor);
@@ -323,7 +335,6 @@ export default function GameCanvas() {
     ctx.fillStyle = groundGrad;
     ctx.fillRect(0, groundY, canvas.width, canvas.height * GAME_CONFIG.groundHeightRatio);
     
-    // Dynamic Perspective Grid Lines
     ctx.save();
     ctx.strokeStyle = `rgba(255,255,255,0.07)`;
     ctx.lineWidth = 1.5;
@@ -335,7 +346,6 @@ export default function GameCanvas() {
     }
     ctx.stroke();
 
-    // Horizontal grid lines
     for(let j = 1; j < 5; j++) {
         const yLine = groundY + Math.pow(j, 1.5) * 10;
         if(yLine < canvas.height) {
@@ -347,26 +357,26 @@ export default function GameCanvas() {
     }
     ctx.restore();
 
-    // Intense Ground Lip
     ctx.shadowBlur = 15;
     ctx.shadowColor = era.groundAccent;
     ctx.fillStyle = era.groundAccent;
     ctx.fillRect(0, groundY, canvas.width, 3);
     ctx.shadowBlur = 0;
 
-    // Drop shadow for player
     if (playerRef.current) {
         ctx.save();
-        let shadowY = groundY;
         let p = playerRef.current;
+        let shadowY = groundY;
+        // Floor shadow based on absolute ground regardless of platforms
         let heightAboveGround = groundY - (p.y + p.height);
-        let shadowAlpha = Math.max(0.05, 0.4 - (heightAboveGround * 0.002));
-        let shadowWidth = p.width * 0.9 + (p.isGrounded ? Math.sin(g.frames * 0.3) * 3 : 0);
-        
-        ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
-        ctx.beginPath();
-        ctx.ellipse(p.x + p.width/2, shadowY + 8, shadowWidth / 1.5, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
+        let shadowAlpha = Math.max(0.0, 0.4 - (heightAboveGround * 0.002));
+        if (shadowAlpha > 0) {
+            let shadowWidth = p.width * 0.9 + (p.isGrounded ? Math.sin(g.frames * 0.3) * 3 : 0);
+            ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
+            ctx.beginPath();
+            ctx.ellipse(p.x + p.width/2, shadowY + 8, shadowWidth / 1.5, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
         ctx.restore();
     }
   };
@@ -381,7 +391,6 @@ export default function GameCanvas() {
     if (state.status === 'PLAYING') {
       g.frames++;
       
-      // Update Combo Decay
       if (g.frames - g.lastComboTime > GAME_CONFIG.comboDecayTime && g.combo > 0) {
           g.combo = 0;
           g.comboMultiplier = 1;
@@ -406,13 +415,13 @@ export default function GameCanvas() {
       
       g.currentSpeed = Math.min(g.currentSpeed + (GAME_CONFIG.speedIncrement * 0.1), GAME_CONFIG.maxSpeed);
 
-      // DOM HUD Updates (avoiding React Overhead purely)
       updateHUD();
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawEnvironment(ctx, canvas);
       handleEntities(canvas);
       
+      platformsRef.current.forEach(plat => plat.draw(ctx));
       dataBitsRef.current.forEach(b => b.draw(ctx, g.frames));
       shieldsRef.current.forEach(s => s.draw(ctx, g.frames));
       obstaclesRef.current.forEach(obs => obs.draw(ctx));
@@ -421,8 +430,8 @@ export default function GameCanvas() {
       if (coinRef.current) coinRef.current.draw(ctx);
 
       if (playerRef.current) {
-          playerRef.current.update(keys, g.frames, particlesRef.current);
-          playerRef.current.draw(ctx, g.frames);
+          playerRef.current.update(keys, g.frames, particlesRef.current, platformsRef.current, g.currentSpeed);
+          playerRef.current.draw(ctx, g.frames, g.currentSpeed);
       }
     }
   }, state.status === 'PLAYING');
@@ -462,7 +471,6 @@ export default function GameCanvas() {
       
       {state.status === 'PLAYING' && state.eraRenderData && <HUD />}
 
-      {/* DOM Era transition banner - Now visually stunning and premium */}
       {state.eraRenderData && (
           <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl px-8 flex flex-col items-center justify-center transition-all duration-[2000ms] ease-out pointer-events-none drop-shadow-2xl ${state.bannerVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
              <div className="relative group">

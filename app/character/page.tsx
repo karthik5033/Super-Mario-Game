@@ -24,7 +24,7 @@ export default function CharacterSelectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white font-mono p-8 flex flex-col items-center">
+    <div className="min-h-screen bg-transparent text-white font-mono p-8 flex flex-col items-center">
       <header className="text-center mb-12">
         <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter">
           CHOOSE YOUR LEGEND

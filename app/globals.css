@@ -42,11 +42,9 @@ body, html {
   background: #050505;
   color: #ededed;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 

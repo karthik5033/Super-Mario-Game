@@ -18,8 +18,8 @@ function rRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
     }
 }
 
-export function drawMario(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean) {
-    const stride = isGrounded ? Math.sin(frames * 0.25) * 4 : 2;
+export function drawMario(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean, isMoving: boolean = true) {
+    const stride = isGrounded && isMoving ? Math.sin(frames * 0.25) * 4 : (isGrounded ? 0 : 2);
     const cx = w / 2;
     
     // Add subtle shadow for 3D effect
@@ -103,8 +103,8 @@ export function drawMario(ctx: CanvasRenderingContext2D, w: number, h: number, f
     ctx.fillText('M', cx, 4.5);
 }
 
-export function drawBill(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean) {
-    const stride = isGrounded ? Math.sin(frames * 0.25) * 3 : 1;
+export function drawBill(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean, isMoving: boolean = true) {
+    const stride = isGrounded && isMoving ? Math.sin(frames * 0.25) * 3 : (isGrounded ? 0 : 1);
     const cx = w / 2;
 
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
@@ -175,9 +175,9 @@ export function drawBill(ctx: CanvasRenderingContext2D, w: number, h: number, fr
     rRect(ctx, cx + 1, 7, 6, 4, 1); ctx.fill();
 }
 
-export function drawRobot(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean) {
+export function drawRobot(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean, isMoving: boolean = true) {
     const cx = w / 2;
-    const stride = isGrounded ? Math.sin(frames * 0.25) * 2 : 0;
+    const stride = isGrounded && isMoving ? Math.sin(frames * 0.25) * 2 : 0;
     
     ctx.shadowColor = 'rgba(0,255,255,0.4)';
     ctx.shadowBlur = 8;
@@ -252,9 +252,9 @@ export function drawRobot(ctx: CanvasRenderingContext2D, w: number, h: number, f
     ctx.beginPath(); ctx.arc(cx + 7 + stride, 34.5, 2, 0, Math.PI*2); ctx.fill();
 }
 
-export function drawAda(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean) {
+export function drawAda(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean, isMoving: boolean = true) {
     const cx = w / 2;
-    const stride = isGrounded ? Math.sin(frames * 0.25) * 2 : 0;
+    const stride = isGrounded && isMoving ? Math.sin(frames * 0.25) * 2 : 0;
     
     // Dress Base (Bell shape)
     const dressGrad = ctx.createLinearGradient(0, 12, 0, 38);
@@ -331,9 +331,9 @@ export function drawAda(ctx: CanvasRenderingContext2D, w: number, h: number, fra
     ctx.beginPath(); ctx.arc(cx + 4, 21, 2.5, 0, Math.PI*2); ctx.fill();
 }
 
-export function drawLinus(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean) {
+export function drawLinus(ctx: CanvasRenderingContext2D, w: number, h: number, frames: number, isGrounded: boolean, isMoving: boolean = true) {
     const cx = w / 2;
-    const stride = isGrounded ? Math.sin(frames * 0.25) * 3 : 1;
+    const stride = isGrounded && isMoving ? Math.sin(frames * 0.25) * 3 : (isGrounded ? 0 : 1);
     
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
     ctx.shadowBlur = 4;

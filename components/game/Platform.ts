@@ -17,8 +17,8 @@ export class Platform {
     this.height = 24;
 
     const groundY = canvasHeight - (canvasHeight * GAME_CONFIG.groundHeightRatio);
-    // Platform spawns at comfortable single-jump height (50-80px above ground)
-    this.y = groundY - (Math.random() * 30 + 50); 
+    // Platform spawns at a height the player can walk under or jump onto (90-150px above ground)
+    this.y = groundY - (Math.random() * 60 + 90); 
     this.eraId = eraId;
   }
 

@@ -46,6 +46,8 @@ export class Obstacle {
   hitboxPadding: number = 0;
   markedForDeletion: boolean = false;
   isSkyObstacle: boolean = false;
+  frames: number = 0;
+  initialY: number = 0;
 
   constructor(canvas: HTMLCanvasElement, eraId: number, forceSky: boolean = false) {
     this.eraId = eraId;
@@ -79,10 +81,26 @@ export class Obstacle {
       const groundY = canvas.height - (canvas.height * GAME_CONFIG.groundHeightRatio);
       this.y = groundY - this.height;
     }
+    this.initialY = this.y;
   }
 
   update(currentSpeed: number) {
-    this.x -= currentSpeed;
+    this.frames++;
+    if (this.type === 'mushroom_mob') {
+      this.x -= (currentSpeed + 2); // Walk towards player
+      this.y = this.initialY - Math.abs(Math.sin(this.frames * 0.1)) * 30; // Hopping
+    } else if (this.type === 'satellite') {
+      this.x -= currentSpeed * 1.1;
+      this.y = this.initialY + Math.sin(this.frames * 0.02) * 40; // Sine wave in air
+    } else if (this.type === 'drone') {
+      this.x -= currentSpeed * 1.5; // Fast
+      this.y = this.initialY + Math.sin(this.frames * 0.05) * 20; // Erratic up and down
+    } else if (this.type === 'ai_drone') {
+      this.x -= currentSpeed * 1.2;
+      this.y = this.initialY + Math.cos(this.frames * 0.03) * 60; // Deep sweep
+    } else {
+      this.x -= currentSpeed;
+    }
   }
 
   get isOffScreen(): boolean {
@@ -309,7 +327,8 @@ export class Obstacle {
         break;
       case 'mushroom_mob': {
         const mx = this.x;
-        const my = this.y;
+        const wobble = Math.abs(Math.sin(Date.now() * 0.01)) * 4;
+        const my = this.y - wobble; // Wobble effect for walking
         const mw = this.width;
         const mh = this.height;
         // Angry cap — dark red

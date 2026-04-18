@@ -22,6 +22,7 @@ import { HintOverlay, HintUrgency } from './HintOverlay';
 import { LoreCard } from './LoreCard';
 
 type GameState = 'MENU' | 'PLAYING' | 'PAUSED' | 'GAME_OVER';
+type PlayMode = 'RUNNER' | 'MANUAL';
 
 interface State {
   status: GameState;
@@ -29,6 +30,7 @@ interface State {
   bannerVisible: boolean;
   gravityEnabled: boolean;
   muted: boolean;
+  playMode: PlayMode;
 }
 
 type Action = 
@@ -40,14 +42,16 @@ type Action =
   | { type: 'HIDE_BANNER' }
   | { type: 'TOGGLE_GRAVITY' }
   | { type: 'TOGGLE_MUTE' }
-  | { type: 'TOGGLE_PAUSE' };
+  | { type: 'TOGGLE_PAUSE' }
+  | { type: 'SET_PLAY_MODE'; mode: PlayMode };
 
 const initialState: State = {
   status: 'MENU',
   eraRenderData: ERAS[0],
   bannerVisible: true,
   gravityEnabled: true,
-  muted: false
+  muted: false,
+  playMode: 'RUNNER'
 };
 
 function gameReducer(state: State, action: Action): State {
@@ -78,6 +82,8 @@ function gameReducer(state: State, action: Action): State {
       const newMuted = !state.muted;
       (GAME_CONFIG as any).muted = newMuted;
       return { ...state, muted: newMuted };
+    case 'SET_PLAY_MODE':
+      return { ...state, playMode: action.mode };
     default:
       return state;
   }
@@ -461,6 +467,17 @@ export default function GameCanvas() {
           pBox.y < h.y + h.height &&
           pBox.y + pBox.height > h.y
         ) {
+            // Check if it's a Mario-style stomp!
+            // Player is falling (vy > 0), their bottom is hitting the mushroom's top half
+            if (obs.type === 'mushroom_mob' && p.vy > 0 && pBox.y + pBox.height <= h.y + h.height * 0.8) {
+                p.vy = -12; // Bounce off the mushroom
+                obs.markedForDeletion = true;
+                g.score += 500; // Increased score for stomping
+                createExplosion(h.x + h.width/2, h.y, '#e52521'); // Red explosion
+                createExplosion(h.x + h.width/2, h.y, '#ffd700'); // Gold "coins" explosion
+                continue; // Skip the death logic below
+            }
+
             if (!p.hitObstacle()) {
                 obs.markedForDeletion = true;
                 createExplosion(h.x + h.width/2, h.y + h.height/2, '#3498db');
@@ -710,16 +727,29 @@ export default function GameCanvas() {
           return;
       }
       
-      if (speedModeRef.current === 'AUTO') {
-          const maxSpeeds: Record<number, number> = { 1: 8, 2: 10, 3: 12, 4: 14, 5: 16 };
-          const eraId = eraManagerRef.current?.currentEra.id || 1;
-          const speedCap = maxSpeeds[eraId] || 16;
-          
-          if (g.currentSpeed < speedCap) {
-             g.currentSpeed += 0.0008;
+      if (state.playMode === 'RUNNER') {
+          if (speedModeRef.current === 'AUTO') {
+              const maxSpeeds: Record<number, number> = { 1: 8, 2: 10, 3: 12, 4: 14, 5: 16 };
+              const eraId = eraManagerRef.current?.currentEra.id || 1;
+              const speedCap = maxSpeeds[eraId] || 16;
+              
+              if (g.currentSpeed < speedCap) {
+                 g.currentSpeed += 0.0008;
+              }
+          } else {
+              g.currentSpeed = customSpeedRef.current;
           }
       } else {
-          g.currentSpeed = customSpeedRef.current;
+          // MANUAL MODE
+          g.currentSpeed = 0;
+          if (playerRef.current) {
+             if (keys.ArrowRight && playerRef.current.x >= canvas.width * 0.5) {
+                 g.currentSpeed = GAME_CONFIG.playerSpeed;
+             }
+             if (keys.ArrowLeft && playerRef.current.x <= canvas.width * 0.2) {
+                 g.currentSpeed = -GAME_CONFIG.playerSpeed;
+             }
+          }
       }
 
       if (bgSystemRef.current) {
@@ -741,7 +771,7 @@ export default function GameCanvas() {
       if (coinRef.current) coinRef.current.draw(ctx);
 
       if (playerRef.current) {
-          playerRef.current.update(keys, g.frames, particlesRef.current, platformsRef.current, g.currentSpeed);
+          playerRef.current.update(keys, g.frames, particlesRef.current, platformsRef.current, g.currentSpeed, state.playMode);
           playerRef.current.draw(ctx, g.frames, g.currentSpeed);
 
           if (hintsEnabled && g.frames % 30 === 0) {
@@ -812,8 +842,11 @@ export default function GameCanvas() {
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-black font-sans selection:bg-purple-500/30">
-      <canvas ref={canvasRef} className="block w-full h-full" />
+    <div className="relative w-full h-full overflow-hidden bg-transparent font-sans selection:bg-purple-500/30">
+      <canvas 
+        ref={canvasRef} 
+        className="block w-full h-full" 
+      />
       <HintOverlay urgency={hintUrgency} playerPos={playerCanvasPos} enabled={hintsEnabled && state.status === 'PLAYING'} />
       
       {gravityToggleMsg && (
@@ -849,28 +882,42 @@ export default function GameCanvas() {
               >
                 {!state.muted ? '🎵 Music: ON' : '🔇 Music: OFF'}
               </button>
-             <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-sm">
+             <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-sm mb-1">
                 <button 
-                  onClick={() => setSpeedMode('AUTO')} 
-                  className={`px-4 py-1.5 font-bold text-xs uppercase tracking-wider transition-all duration-300 ${speedMode === 'AUTO' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >Auto</button>
-                <div className="w-px bg-white/10"></div>
+                  onClick={() => dispatch({ type: 'SET_PLAY_MODE', mode: 'RUNNER' })} 
+                  className={`px-4 py-1.5 font-bold text-[10px] uppercase tracking-wider transition-all duration-300 w-1/2 ${state.playMode === 'RUNNER' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >Runner</button>
                 <button 
-                  onClick={() => setSpeedMode('CUSTOM')} 
-                  className={`px-4 py-1.5 font-bold text-xs uppercase tracking-wider transition-all duration-300 ${speedMode === 'CUSTOM' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >Custom</button>
+                  onClick={() => dispatch({ type: 'SET_PLAY_MODE', mode: 'MANUAL' })} 
+                  className={`px-4 py-1.5 font-bold text-[10px] uppercase tracking-wider transition-all duration-300 w-1/2 ${state.playMode === 'MANUAL' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >Manual</button>
              </div>
-             {speedMode === 'CUSTOM' && (
-                <div className="flex flex-col items-end">
-                   <label className="text-white/60 text-[10px] uppercase font-bold mb-1">Set Speed: {customSpeed.toFixed(1)}x</label>
-                   <input 
-                     type="range" 
-                     min="1" max="10" step="0.5" 
-                     value={customSpeed} 
-                     onChange={(e) => setCustomSpeed(parseFloat(e.target.value))} 
-                     className="w-24 accent-purple-500 cursor-pointer"
-                   />
-                </div>
+             {state.playMode === 'RUNNER' && (
+               <>
+                 <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-sm">
+                    <button 
+                      onClick={() => setSpeedMode('AUTO')} 
+                      className={`px-4 py-1.5 font-bold text-xs uppercase tracking-wider transition-all duration-300 ${speedMode === 'AUTO' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >Auto</button>
+                    <div className="w-px bg-white/10"></div>
+                    <button 
+                      onClick={() => setSpeedMode('CUSTOM')} 
+                      className={`px-4 py-1.5 font-bold text-xs uppercase tracking-wider transition-all duration-300 ${speedMode === 'CUSTOM' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >Custom</button>
+                 </div>
+                 {speedMode === 'CUSTOM' && (
+                    <div className="flex flex-col items-end">
+                       <label className="text-white/60 text-[10px] uppercase font-bold mb-1">Set Speed: {customSpeed.toFixed(1)}x</label>
+                       <input 
+                         type="range" 
+                         min="1" max="10" step="0.5" 
+                         value={customSpeed} 
+                         onChange={(e) => setCustomSpeed(parseFloat(e.target.value))} 
+                         className="w-24 accent-purple-500 cursor-pointer"
+                       />
+                    </div>
+                 )}
+               </>
              )}
           </div>
           <div className="absolute bottom-4 left-4 z-30 text-white/50 text-[10px] uppercase font-mono tracking-widest font-bold hidden md:block">

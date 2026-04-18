@@ -13,7 +13,7 @@ export default function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-[#050505] text-white p-4 md:p-8 flex flex-col items-center overflow-x-hidden font-sans">
+    <div className="relative min-h-screen bg-transparent text-white p-4 md:p-8 flex flex-col items-center overflow-x-hidden font-sans">
       
       {/* Dynamic Background */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none"></div>

@@ -37,6 +37,9 @@ export class Player {
   baseWidth: number = 36;
   baseHeight: number = 40;
 
+  facingLeft: boolean = false;
+  isMoving: boolean = false;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.x = 120;
@@ -120,7 +123,7 @@ export class Player {
     };
   }
 
-  update(keys: { [key: string]: boolean }, frames: number, particles: Particle[], platforms: Platform[], speed: number) {
+  update(keys: { [key: string]: boolean }, frames: number, particles: Particle[], platforms: Platform[], speed: number, playMode: string = 'RUNNER') {
     const prevY = this.y;
     const prevX = this.x;
 
@@ -133,11 +136,33 @@ export class Player {
     }
 
     // Horizontal Movement
+    this.isMoving = false;
     if (keys.ArrowLeft) {
-      this.x -= GAME_CONFIG.playerSpeed;
+      this.facingLeft = true;
+      this.isMoving = true;
+      if (playMode === 'MANUAL' && this.x <= this.canvas.width * 0.2) {
+         // Camera scrolls instead
+      } else {
+         this.x -= GAME_CONFIG.playerSpeed;
+      }
     }
     if (keys.ArrowRight) {
-      this.x += GAME_CONFIG.playerSpeed;
+      this.facingLeft = false;
+      this.isMoving = true;
+      if (playMode === 'MANUAL' && this.x >= this.canvas.width * 0.5) {
+         // Camera scrolls instead
+      } else {
+         this.x += GAME_CONFIG.playerSpeed;
+      }
+    }
+
+    if (playMode === 'RUNNER') {
+       this.isMoving = true;
+       this.facingLeft = false;
+    }
+
+    if (playMode === 'MANUAL' && this.x < 0) {
+       this.x = 0;
     }
 
     // Gravity and Vertical Action
@@ -185,17 +210,41 @@ export class Player {
       const verticalMatch = this.y + this.height > ph.y && this.y < ph.y + ph.height;
 
       if (horizontalMatch && verticalMatch) {
-         // Did we land on top?
-         const wasAbove = prevY + this.height <= ph.y + 0.1; // +0.1 for float precision
-         if (wasAbove && this.vy > 0) {
-            this.y = ph.y - this.height;
-            this.vy = 0;
-            this.isGrounded = true;
-            standingOnPlatform = true;
-            floorY = ph.y;
-         } else {
-             // Platform is one-way! We can jump through from the bottom or sides unharmed.
-         }
+        // Calculate overlaps
+        const overlapX = (this.x + this.width / 2 < ph.x + ph.width / 2) 
+          ? (this.x + this.width) - ph.x 
+          : (ph.x + ph.width) - this.x;
+          
+        const overlapY = (this.y + this.height / 2 < ph.y + ph.height / 2)
+          ? (this.y + this.height) - ph.y
+          : (ph.y + ph.height) - this.y;
+
+        if (overlapX < overlapY) {
+          // Resolve horizontal
+          if (this.x + this.width / 2 < ph.x + ph.width / 2) {
+            this.x = ph.x - this.width; // Push left
+          } else {
+            this.x = ph.x + ph.width; // Push right
+          }
+        } else {
+          // Resolve vertical
+          if (this.y + this.height / 2 < ph.y + ph.height / 2) {
+            // Top collision (landed on platform)
+            if (this.vy >= 0) {
+              this.y = ph.y - this.height;
+              this.vy = 0;
+              this.isGrounded = true;
+              standingOnPlatform = true;
+              floorY = ph.y;
+            }
+          } else {
+            // Bottom collision (bonked head)
+            if (this.vy < 0) {
+              this.y = ph.y + ph.height;
+              this.vy = 0;
+            }
+          }
+        }
       }
     }
 
@@ -365,17 +414,22 @@ export class Player {
       ctx.translate(-this.width/2, -this.height/2);
     }
 
+    if (this.facingLeft) {
+      ctx.translate(this.width, 0);
+      ctx.scale(-1, 1);
+    }
+
     if (this.isInvincible && frames % 4 < 2) {
       ctx.globalAlpha = 0.4;
     }
 
     switch (this.characterId) {
-      case 'mario': drawMario(ctx, this.width, this.height, frames, this.isGrounded); break;
-      case 'bill':  drawBill(ctx, this.width, this.height, frames, this.isGrounded);  break;
-      case 'robot': drawRobot(ctx, this.width, this.height, frames, this.isGrounded); break;
-      case 'ada':   drawAda(ctx, this.width, this.height, frames, this.isGrounded);   break;
-      case 'linus': drawLinus(ctx, this.width, this.height, frames, this.isGrounded); break;
-      default:      drawRobot(ctx, this.width, this.height, frames, this.isGrounded); break;
+      case 'mario': drawMario(ctx, this.width, this.height, frames, this.isGrounded, this.isMoving); break;
+      case 'bill':  drawBill(ctx, this.width, this.height, frames, this.isGrounded, this.isMoving);  break;
+      case 'robot': drawRobot(ctx, this.width, this.height, frames, this.isGrounded, this.isMoving); break;
+      case 'ada':   drawAda(ctx, this.width, this.height, frames, this.isGrounded, this.isMoving);   break;
+      case 'linus': drawLinus(ctx, this.width, this.height, frames, this.isGrounded, this.isMoving); break;
+      default:      drawRobot(ctx, this.width, this.height, frames, this.isGrounded, this.isMoving); break;
     }
 
     if (this.hasShield) {

@@ -19,6 +19,8 @@ export const GAME_CONFIG = {
   minObstacleGap: 500,
   maxObstacleGap: 800,
   obstacleSpawnChance: 0.012,
+  floatingObstacleChance: 0,
+  doubleObstacleChance: 0,
 
   // Collectibles
   dataBitSpawnChance: 0.006,
